@@ -2,9 +2,15 @@
 
 # Controller for Instant or Tankless Water Heater
 
-Warning! This project is about mains voltage and water. Do not handle with it until you really know what you are doing and you are aware of all the risks!
+# Safety Warning
+
+This project deals with mains voltage. Make sure you understand what you are doing. Please read the safety warning below carefully.
+
+![pic](warning.webp)
 
 ![pic](3D.png?raw=true)
+
+[Link to EasyEDA project](https://oshwlab.com/goronb/imu-for-agopengps_copy_copy_copy)
 
 Housing:
 
@@ -26,7 +32,7 @@ Suitable instant / tankless water heater:
 
 e. g. CLAGE MPH6 5,7 kW 230V (e. g. via Amazon)
 
-* to be translated *
+* to be translated 
 
 
 # Elektronische Regelung für einen Durchlauferhitzer
