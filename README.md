@@ -8,10 +8,25 @@ Warning! This project is about mains voltage and water. Do not handle with it un
 
 Housing:
 
-![pic](mechanical_data/housing.png?raw=true)
+![pic](mechanical_data/sonoff_IP66_housing.png?raw=true)
 
-e. g. https://de.aliexpress.com/item/1005004819429222.html
+e. g.: https://de.aliexpress.com/item/1005004819429222.html
 
+Flow meter and temperature sensor:
+
+![pic](mechanical_data/flow_meter.png?raw=true)
+
+e. g.: https://de.aliexpress.com/item/1005004532077576.html
+
+Suitable triac: BTA40-600
+
+https://www.st.com/resource/en/datasheet/btb41.pdf
+
+Suitable instant / tankless water heater:
+
+e. g. CLAGE MPH6 5,7 kW 230V (e. g. via Amazon)
+
+* to be translated *
 
 
 # Elektronische Regelung für einen Durchlauferhitzer
