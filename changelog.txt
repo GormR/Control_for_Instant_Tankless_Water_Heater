@@ -1,0 +1,6 @@
+V1.0
+- first release 
+
+V1.1
+- bugfixes - no new features
+
