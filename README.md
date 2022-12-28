@@ -43,11 +43,15 @@ Die Proportionalitätskonstante muss empirisch ermittelt werden, solange nicht e
 Auch muss die Formel zur Berechnung der Temperatur händisch ermittelt werden. Dazu wird der Sensor in ein Wasserbad gehängt und die Rohdaten des ADCs über Temperatur ermittelt. In einer Tabellenkalkulation kann man dann die optimale Formel ausprobieren. Eine geeignete Kalkulationstabelle befindet sich im Ordner "documentation".
 
 Gehäuse:
+
 ![pic](mechanical_data/sonoff_IP66_housing.png?raw=true)
+
 z. B.: https://de.aliexpress.com/item/1005004819429222.html
 
 Durchflussmesser und Temperatursensor:
+
 ![pic](mechanical_data/flow_meter.png?raw=true)
+
 z. B.: https://de.aliexpress.com/item/1005004532077576.html
 
 Geeigneter Triac: BTA40-600
