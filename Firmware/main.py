@@ -1,4 +1,10 @@
-# Control for instant/tankless water heater
+#  Test code for instant/tankless water heater
+#
+#
+#  copyright 2022 by Gorm Rose
+#
+#  This example code is licensed under GNU PL V3.0
+#
 
 # GP0: Triac1
 # GP1: (Triac2)
@@ -17,7 +23,7 @@ from machine import Pin
 from machine import ADC
 from time import sleep
 
-patterns = [0b00000000000000000000000000000000,  #  0
+patterns = [0b00000000000000000000000000000000,  #  0 first phase
             0b10000000000000000000000000000000,  #  1
             0b10000000000000001000000000000000,  #  2
             0b10000000000100000000001000000000,  #  3
@@ -51,24 +57,40 @@ patterns = [0b00000000000000000000000000000000,  #  0
             0b01111111111111111111111111111111,  # 31
             0b11111111111111111111111111111111]  # 32
 
+#### µC pin definitions ####
+
 _gate = Pin(0, Pin.OUT)       # gate of power triac: 0 = on
+_gate2 = Pin(1, Pin.OUT)      # gate of power triac: 0 = on
 _zerocross = Pin(2, Pin.IN)   # 0 = mains zero crossing right now
 _flow = Pin(22, Pin.IN)       # water flow pulses 660 pulses/l
-temp_out = ADC(26)            # optional ADC for output temperature (not used for control reasons)
-temp_in = ADC(27)             # ADC for input temperature
+temp_out = ADC(26)
+temp_in = ADC(27)
 
-Ttarget = 41                  # Target temperature
-BoostTime = 1000              # Time for boost (100%) when water starts flowing to heat up the pipe quickly
+#### user constants ####
 
-_gate.value(1)  # inactive
+Ttarget = 41                  # TARGET TEMPERATURE
+BoostTime = 500               # Boost time in 1/64/freq, so about 0.8 per second for 50Hz
+p = 1 / 14                    # constant for heating curve: power = p * delta_temperature * waterflow  (higher = steeper)
+k0 = 16.6                     # constants for tranforming ADC value to temperature in °C
+k1 = 1 / 1390
+k2 = 1 / 116000000
+
+#### variables ####
+
 cycle = 1       # pattern bit counter
-power = 0       # values from 0 oo32 (no heat) to 32 oo32 (full power)
-TinLP = 0       # temperature LP filter (32 values)
+lowhigh = 0     # always two identical bits
+power = 0       # values from 0 (off) to 64 (full power on both phases)
+TinLP = 0       # temperature LP filter (64 values)
 ToutLP = 0
-Wflow = 0       # Water flow counter
+Wflow = 0       # water flow counter
 flowcnt = 0
-standbycnt = 990  # idle time up counter; counts time of no water consumption in 32/f (f=50Hz in Europe) steps till 1000
-boost = 0       # boost time down counter
+standbycnt = 0  # counts time of no water consumption in 64/f (f=50Hz in Europe) steps till BoostTime
+boost = 0
+
+_gate.value(1)      # init as inactive
+_gate2.value(1)     # init as inactive
+
+#### water counter interrupt ####
 
 def callback(_flow):
     global flowcnt
@@ -76,18 +98,23 @@ def callback(_flow):
 
 _flow.irq(trigger=Pin.IRQ_FALLING, handler=callback)
 
-while True:
-    cycle -= 1
-    if cycle == 0:  # every 0.64s (50Hz mains) or 0.5s (60Hz mains)
-        cycle = 32  # bit pattern has 32 bits
-        
-        # calculate temperature [°C]
-        temp = 0x10000 - (ToutLP >> 5)                          # >> 5: temperature LP filter (32 values)
-        Tout = 16.6 + temp / 1390 + temp * temp / 116000000     # formular evaluated by LibreOffice Calc
-        temp = 0x10000 - (TinLP >> 5)                           # >> 5: temperature LP filter (32 values)
-        Tin  = 16.6 + temp / 1390 + temp * temp / 116000000     # formular evaluated by LibreOffice Calc
+#### control loop ####
 
-        TinLP = 0       # reinit LP filter and water flow counter
+while True:
+    if lowhigh != 0:  # this 'if' ensures, that always two half waves are either on or off (avoids DC on AC net)
+        cycle -= 1
+        lowhigh = 0
+    else:
+        lowhigh = 1
+
+    if cycle == 0:  # once every 1.28s @ 50 Hz (1.02s @ 60 Hz)
+        cycle = 32
+        temp = 0x10000 - (ToutLP >> 6)  # >> 6: temperature LP filter (64 values)
+        Tout = k0 + k1 * temp + k2 * temp * temp  # calculate temperature in °C from ADC values
+        temp = 0x10000 - (TinLP >> 6)
+        Tin  = k0 + k1 * temp + k2 * temp * temp
+
+        TinLP = 0  # reinit counters
         ToutLP = 0
         Wflow = flowcnt
         flowcnt = 0
@@ -99,33 +126,40 @@ while True:
         else:  # water is flowing
             if boost > 0:
                 boost -= 1
-            if standbycnt != 0:  # water just started to flow
-                boost = int((Ttarget - Tin) * standbycnt / 300)  # calculate boost time
+            if standbycnt != 0:
+                boost = int((Ttarget - Tin) * standbycnt / 150)
                 standbycnt = 0
 
-        power = int(Wflow * (Ttarget - Tin) / 7)  # water heating formula
+        power = int(p * Wflow * (Ttarget - Tin))
         if power < 0:
             power = 0
-        if power > 32:  # limit must be 64 for 3-phase heater with 2 triacs!
-            power = 32
+        if power > 64 or boost > 0:
+            power = 64
 
-        print (Tout, Tin, Wflow, power, standbycnt, boost)
+        print(Tout, Tin, Wflow, power, standbycnt, boost)
 
     while _zerocross.value() == 1:    # wait for mains voltage zero crossing
         pass
 
-    if (patterns[power & 0x1f] & (1 << (cycle - 1))) != 0 or boost > 0:
-        _gate.value(0)   # trigger triac for the next half wave (10ms)
-#    if power > 32:  # only for 3-phase heater with 2 triacs!
-#        _gate2.value(0)   # trigger triac for the next half wave (10ms)
+    if power > 32:
+        _gate.value(0)          # trigger triac for the next half wave (10ms)
+    else:
+        if (patterns[power] & (1 << (cycle - 1))) != 0:
+            _gate.value(0)      # trigger triac for the next half wave (10ms)
+    sleep(.003)                 # trigger for 3ms
+    _gate.value(1)              # then release trigger
 
-    ToutLP += temp_out.read_u16()  # blue/green wires
-    TinLP += temp_in.read_u16()    # white/gray wires
+#    if power > 32:  # enable these lines for 2-phase setups
+#        while _zerocross.value() == 1:  # wait for mains voltage zero crossing (2nd phase must be 120° delayed)
+#            pass
+#        if (patterns[power - 32] & (1 << (cycle - 1))) != 0 or boost > 0:
+#            _gate2.value(0)     # trigger 2nd triac for the next half wave (10ms)
+#    sleep(.003)                 # trigger for 3ms
+#    _gate2.value(1)             # then release trigger2
 
-    sleep(.003)          # trigger for 3ms
+    ToutLP += temp_out.read_u16()  # blue/green wires in my case
+    TinLP += temp_in.read_u16()    # white/gray wires in my case
 
-    _gate.value(1)       # release trigger
-#    _gate2.value(1)      # release trigger only for 3-phase heater with 2 triacs!
 
 
 
