@@ -57,11 +57,11 @@ Nach erfolgtem Aufbau sollte die Funktion zunächst mit Hilfe einer klassischen 
 Regelung:
 Die notwendige elektrische Energie ist direkt proportional zum Durchfluss und zur Temperaturdifferenz zwischen der Temperatur des einströmenden Wassers und der Wunschtemperatur:
 
-P ~ V x deltaT
+Power = p x Wasserdurchfluss x deltaT
 
-Die Proportionalitätskonstante muss empirisch ermittelt werden, solange nicht exakt dieselben Teile verwendet werden, wie in diesem Versuchsaufbau. Auf den Temperatursensor am Ausgang kann für die Temperaturregeleung komplett verzichtet werden, er ist aber zum Finden der Proportionalitätskonstante sehr hilfreich, und die Ausgangstemperatur kann auf dem Display angezeigt werden.
+Die Proportionalitätskonstante (in Python-Script auch "p") muss empirisch ermittelt werden, solange nicht exakt dieselben Teile verwendet werden, wie in diesem Versuchsaufbau. Auf den Temperatursensor am Ausgang kann für die Temperaturregeleung komplett verzichtet werden, er ist aber zum Finden der Proportionalitätskonstante sehr hilfreich, und die Ausgangstemperatur kann auf dem Display angezeigt werden. 
 
-Auch muss die Formel zur Berechnung der Temperatur händisch ermittelt werden. Dazu wird der Sensor in ein Wasserbad gehängt und die Rohdaten des ADCs über Temperatur ermittelt. In einer Tabellenkalkulation kann man dann die optimale Formel ausprobieren. Eine geeignete Kalkulationstabelle befindet sich im Ordner "documentation".
+Auch muss die Formel zur Berechnung der Temperatur händisch ermittelt werden. Dazu wird der Sensor in ein Wasserbad gehängt und die Rohdaten des ADCs über Temperatur ermittelt. In einer Tabellenkalkulation kann man dann die optimale Formel ausprobieren. Eine geeignete Kalkulationstabelle befindet sich im Ordner "documentation". Ggf. die drei Konstanten k0, k1 und k2 im Python-Script anpassen.
 
 Gehäuse:
 
