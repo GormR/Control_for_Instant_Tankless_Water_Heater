@@ -144,9 +144,9 @@ def OLED_display():
                 if Wflow == 0:
                     oled.text("Verbrauch  %4.1fl" % (water/PPL), 0, 36)
                 else:
-                    oled.text("Durchfl. %2ul/min" % (Wflow * 60 * MainsFreq / PPL / 64), 0, 36)
+                    oled.text("Durchfl.%1.1fl/min" % (Wflow * 60 * MainsFreq / PPL / 64), 0, 36)
                 oled.text("Leistung   %2.1fkW" % (HeaterPower * power / 32), 0, 46)  # 64 instead of 32 for 2 triacs
-                oled.text("Strom %6.1f kWh" % (HeaterPower * energy / 7200 / MainsFreq), 0, 56)
+                oled.text("Strom  %6.1fkWh" % (HeaterPower * energy / 7200 / MainsFreq), 0, 56)
             oled.show()  # 26ms
             new_display_data = 1
         
