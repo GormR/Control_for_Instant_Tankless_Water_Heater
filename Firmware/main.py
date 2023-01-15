@@ -19,8 +19,9 @@
 # GP27: Temperature in
 # Vref = external
 
-from machine import Pin
-from machine import ADC
+import _thread  # unfortunately buggy and not working together with pin interrupt 1/2023
+from machine import Pin, I2C, ADC
+from ssd1306 import SSD1306_I2C
 from time import sleep
 
 patterns = [0b00000000000000000000000000000000,  #  0 first phase
@@ -62,18 +63,26 @@ patterns = [0b00000000000000000000000000000000,  #  0 first phase
 _gate = Pin(0, Pin.OUT)       # gate of power triac: 0 = on
 _gate2 = Pin(1, Pin.OUT)      # gate of power triac: 0 = on
 _zerocross = Pin(2, Pin.IN)   # 0 = mains zero crossing right now
+A = Pin(6, Pin.IN, Pin.PULL_UP)
+B = Pin(7, Pin.IN, Pin.PULL_UP)
+Button = Pin(8, Pin.IN, Pin.PULL_UP)
 _flow = Pin(22, Pin.IN)       # water flow pulses 660 pulses/l
 temp_out = ADC(26)
 temp_in = ADC(27)
 
 #### user constants ####
 
-Ttarget = 41                  # TARGET TEMPERATURE
-BoostTime = 500               # Boost time in 1/64/freq, so about 0.8 per second for 50Hz
-p = 1 / 14                    # constant for heating curve: power = p * delta_temperature * waterflow  (higher = steeper)
-k0 = 16.6                     # constants for tranforming ADC value to temperature in °C
+HeaterPower = 5.6                 # electrical power of water heater in [kW]
+MainsFreq = 50                    # Mains freqency in [Hz]
+Ttarget = 41.5                    # TARGET TEMPERATURE in [°C]; preset - can be changed via jogdial
+BoostTime = 500 * MainsFreq / 64  # Boost time in [s]; pattern length is 64 half waves
+DelayTime = 5 * MainsFreq / 64    # Delay time in [s] before boost starts to avoid boost on minimum consumption and to protect mechanical contacts
+p = 1 / 27                        # constant for heating curve: power = p * delta_temperature * waterflow  (higher = steeper)
+k0 = 16.6                         # constants for tranforming ADC value to temperature in °C
 k1 = 1 / 1390
 k2 = 1 / 116000000
+PPL = 1020                        # pulses per liter
+
 
 #### variables ####
 
@@ -84,11 +93,14 @@ TinLP = 0       # temperature LP filter (64 values)
 ToutLP = 0
 Wflow = 0       # water flow counter
 flowcnt = 0
-standbycnt = 0  # counts time of no water consumption in 64/f (f=50Hz in Europe) steps till BoostTime
+flowhelp = _flow.value()
+standbycnt = BoostTime  # counts time of no water consumption in 64/f (f=50Hz in Europe) steps till BoostTime
 boost = 0
+delay = 0
 
 _gate.value(1)      # init as inactive
 _gate2.value(1)     # init as inactive
+
 
 #### water counter interrupt ####
 
@@ -96,11 +108,68 @@ def callback(_flow):
     global flowcnt
     flowcnt += 1
 
-_flow.irq(trigger=Pin.IRQ_FALLING, handler=callback)
+#_flow.irq(trigger=Pin.IRQ_FALLING, handler=callback)  # remarked due to bug in threads lib
+
+
+# variables for display values
+Tin = 22.2   # temperature measurement in
+Tout = 33.3  # temperature measurement out
+power = 0    # power level 0..64 (just 0..32 is used for single triac setup)
+Wflow = 0    # actual water flow
+water = 0    # water sum of one take
+energy = 0   # energy counter since last reset
+
+# core 1 -----------------------------------------------------------------------------------------------------
+
+def OLED_display():
+    global new_display_data  # baton for displaying
+    global Ttarget, Tin, Tout, Wflow, power, energy, standbycnt, water
+    global HeaterPower, MainsFreq, BoostTime
+    
+# OLED display 
+    WIDTH = 128
+    HIGHT = 64
+
+    i2c = I2C(0, scl=Pin(21), sda=Pin(20), freq=400000)
+    oled = SSD1306_I2C(WIDTH, HIGHT, i2c)  # 30ms
+    new_display_data = 1
+
+    while True:   
+        if new_display_data == 2:
+            oled.fill(0)  
+            if standbycnt < BoostTime:
+                oled.text("Solltemp. %2.1f'C" % Ttarget, 0, 0)  
+                oled.text("Auslauf   %2.1f'C" % Tout, 0, 16)  
+                oled.text("Zulauf    %2.1f'C" % Tin, 0, 26)
+                if Wflow == 0:
+                    oled.text("Verbrauch  %4.1fl" % (water/PPL), 0, 36)
+                else:
+                    oled.text("Durchfl. %2ul/min" % (Wflow * 60 * MainsFreq / PPL / 64), 0, 36)
+                oled.text("Leistung   %2.1fkW" % (HeaterPower * power / 32), 0, 46)  # 64 instead of 32 for 2 triacs
+                oled.text("Strom %6.1f kWh" % (HeaterPower * energy / 7200 / MainsFreq), 0, 56)
+            oled.show()  # 26ms
+            new_display_data = 1
+        
+        sleep(0.05)
+
+
+# core 0 -----------------------------------------------------------------------------------------------------
+
+new_display_data = 0  # 0: init needed, 1: nothing to display, 2: new data to show
+print("Hello World!")
+_thread.start_new_thread(OLED_display,())  # run OLED thread on core 1
+print("OLED thread started.")
+x = 0
+a = A.value()
+b = B.value()
 
 #### control loop ####
 
 while True:
+    if _flow.value() != flowhelp:  # interrupt replacement
+        flowcnt += 1
+        flowhelp ^= 1
+        
     if lowhigh != 0:  # this 'if' ensures, that always two half waves are either on or off (avoids DC on AC net)
         cycle -= 1
         lowhigh = 0
@@ -117,35 +186,45 @@ while True:
         TinLP = 0  # reinit counters
         ToutLP = 0
         Wflow = flowcnt
+        water += flowcnt
         flowcnt = 0
 
         if Wflow == 0:  # no water consumption
             boost = 0
+            delay = 0
+            power = 0
             if standbycnt < BoostTime:
                 standbycnt += 1
         else:  # water is flowing
             if boost > 0:
                 boost -= 1
-            if standbycnt != 0:
-                boost = int((Ttarget - Tin) * standbycnt / 150)
-                standbycnt = 0
+            if standbycnt == 0:
+                power = int(p * Wflow * (Ttarget - Tin))
+            else:
+                 if delay < DelayTime and standbycnt >= (BoostTime-5):  # switch-on delay
+                     delay += 1
+                 else:
+                     boost = int((Ttarget - Tin) * standbycnt / 150)
+                     standbycnt = 0
+            if power < 0:
+                power = 0
+            if power > 64 or boost > 0:
+                power = 64
 
-        power = int(p * Wflow * (Ttarget - Tin))
-        if power < 0:
-            power = 0
-        if power > 64 or boost > 0:
-            power = 64
-
-        print(Tout, Tin, Wflow, power, standbycnt, boost)
+        if new_display_data == 1:  # print out the new value after OLED is initialized
+            new_display_data = 2
+        print(Tout, Tin, Wflow, power, standbycnt, boost, delay, water, a, b)
 
     while _zerocross.value() == 1:    # wait for mains voltage zero crossing
         pass
 
     if power > 32:
         _gate.value(0)          # trigger triac for the next half wave (10ms)
+        energy += 1             # counter this half wave
     else:
         if (patterns[power] & (1 << (cycle - 1))) != 0:
             _gate.value(0)      # trigger triac for the next half wave (10ms)
+            energy += 1         # counter this half wave
     sleep(.003)                 # trigger for 3ms
     _gate.value(1)              # then release trigger
 
@@ -159,9 +238,20 @@ while True:
 
     ToutLP += temp_out.read_u16()  # blue/green wires in my case
     TinLP += temp_in.read_u16()    # white/gray wires in my case
-
-
-
-
-
-
+    
+    # jogdial control
+    if a == A.value() and b == B.value() and x != a:  # 10ms debounce filter + change detection 
+        print(a,b)
+        if a^b != 0 and Ttarget < 60:
+            Ttarget += 0.5
+        if a^b == 0 and Ttarget > 20:
+            Ttarget -= 0.5
+        new_display_data = 2
+        if standbycnt > BoostTime - 20:
+            standbycnt = BoostTime - 20  # OLED on for 20s
+        x = a
+    a = A.value()
+    b = B.value()
+    if Button.value() == 0 and standbycnt > BoostTime - 20:
+            standbycnt = BoostTime - 20  # OLED on for 20s
+            new_display_data = 2
