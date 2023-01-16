@@ -8,7 +8,7 @@ This project deals with mains voltage. Make sure you understand what you are doi
 
 ![pic](warning.webp)
 
-![pic](3D.png?raw=true)
+![pic](documentation/control_unit.jpg?raw=true)
 
 [Link to EasyEDA project](https://oshwlab.com/goronb/imu-for-agopengps_copy_copy_copy)
 
