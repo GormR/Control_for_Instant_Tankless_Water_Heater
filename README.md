@@ -39,7 +39,7 @@ e. g. CLAGE MPH6 5,7 kW 230V (e. g. via Amazon)
 
 Warnung! Nicht nachbauen - dieses Projekt verwendet Netzspannung und Wasser. Bei unsachgemäßem Umgang besteht Lebensgefahr! Ferner kann hoher Sachschaden entstehen!
 
-![pic](3D.png?raw=true)
+![pic](documentation/control_unit.jpg?raw=true)
 
 Die Elektronik regelt zusammen mit einem oder zwei externen Triacs und einem Durchflussmesser/Temperatursensor die Wassertemperatur eines elektrischen Durchlauferhitzers. Diese Durchlauferhitzer gibt es sowohl einphasig (dann oft als "Klein-Durchlauferhitzer" bezeichnet), als auch dreiphasig. Der Anschluss ist dementsprechend zweipolig oder dreipolig (dreiphasige Durchlauferhitzer sind als Dreieck geschaltet und benötigen keinen Nullleiter), und zur Regelung benötigt entweder einen oder zwei extern zu montierende Triacs.
 
