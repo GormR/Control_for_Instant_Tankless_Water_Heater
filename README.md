@@ -59,9 +59,9 @@ Die notwendige elektrische Energie ist direkt proportional zum Durchfluss und zu
 
 Power = p x Wasserdurchfluss x deltaT
 
-Die Proportionalitätskonstante (in Python-Script auch "p") muss empirisch ermittelt werden, solange nicht exakt dieselben Teile verwendet werden, wie in diesem Versuchsaufbau. Auf den Temperatursensor am Ausgang kann für die Temperaturregeleung komplett verzichtet werden, er ist aber zum Finden der Proportionalitätskonstante sehr hilfreich, und die Ausgangstemperatur kann auf dem Display angezeigt werden. 
+Die Proportionalitätskonstante (in Python-Script auch "p") muss empirisch ermittelt werden, solange nicht exakt dieselben Teile verwendet werden, wie in diesem Versuchsaufbau. Auf den Temperatursensor am Ausgang kann für die Temperaturregeleung komplett verzichtet werden, er ist aber zum Finden der Proportionalitätskonstante sehr hilfreich, und die Ausgangstemperatur kann so zur Kontrolle auf dem Display angezeigt werden. 
 
-Auch muss die Formel zur Berechnung der Temperatur händisch ermittelt werden. Dazu wird der Sensor in ein Wasserbad gehängt und die Rohdaten des ADCs über Temperatur ermittelt. In einer Tabellenkalkulation kann man dann die optimale Formel ausprobieren. Eine geeignete Kalkulationstabelle befindet sich im Ordner "documentation". Ggf. die drei Konstanten k0, k1 und k2 im Python-Script anpassen.
+Auch muss die Formel zur Berechnung der Temperatur händisch ermittelt werden, falls nicht derselbe Sensor verwendet wird. Dazu wird der Sensor in ein Wasserbad gehängt und die Rohdaten des ADCs über Temperatur ermittelt. In einer Tabellenkalkulation kann man dann die optimale Formel ausprobieren. Eine geeignete Kalkulationstabelle befindet sich im Ordner "documentation". Ggf. die drei Konstanten k0, k1 und k2 im Python-Script anpassen.
 
 Gehäuse:
 
